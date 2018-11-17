@@ -1,0 +1,67 @@
+---
+name: cr8ingest
+version: 0.1.0.0
+github: "mfussenegger/cr8ingest"
+license: BSD3
+author: "Mathias Fußenegger"
+maintainer: "github@zignar.net"
+copyright: "2018 Mathias Fußenegger"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+description: |
+  Please see the README on GitHub at <https://github.com/mfussenegger/cr8ingest#readme>
+
+dependencies:
+  - base >= 4.7 && < 5
+  - transformers
+  - unordered-containers
+  - scientific
+  - vector
+  - text
+  - bytestring
+  - optparse-applicative
+  - streamly >= 0.5
+  - aeson
+  - hasql
+  - hasql-pool
+  - raw-strings-qq
+  - contravariant
+  - clock
+
+library:
+  source-dirs: src
+
+executables:
+  cr8ingest:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - cr8ingest
+
+tests:
+  cr8ingest-test:
+    main: spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - cr8ingest
+  cr8ingest-doctest:
+    main: doctests.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - cr8ingest
+      - doctest
