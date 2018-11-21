@@ -8,8 +8,8 @@ maintainer: "github@zignar.net"
 copyright: "2018 Mathias Fußenegger"
 
 extra-source-files:
-  - README.md
-  - ChangeLog.md
+  - README.rst
+  - ChangeLog.rst
 
 description: |
   Please see the README on GitHub at <https://github.com/mfussenegger/cr8ingest#readme>
@@ -52,7 +52,7 @@ executables:
 tests:
   cr8ingest-test:
     main: spec.hs
-    source-dirs: test
+    source-dirs: tests
     ghc-options:
       - -threaded
       - -rtsopts
@@ -61,7 +61,7 @@ tests:
       - cr8ingest
   cr8ingest-doctest:
     main: doctests.hs
-    source-dirs: test
+    source-dirs: tests
     ghc-options:
       - -threaded
       - -rtsopts
