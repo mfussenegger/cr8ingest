@@ -25,3 +25,21 @@ Insert some JSON records::
   "concurrency: 15"
   op/s: Infinity  avg duration: ...
   done
+
+
+Installation
+============
+
+Clone the repo and run::
+
+  $> stack install
+
+`stack <https://docs.haskellstack.org/en/stable/README/>`_ must be installed.
+
+
+Development
+===========
+
+::
+
+  $> stack test
