@@ -15,6 +15,7 @@ import qualified Db
 import           Hasql.Pool             (Pool, use)
 import qualified Hasql.Session          as HS
 import           Hasql.Statement        (Statement)
+import           Prelude                hiding (head, tail)
 import qualified Streamly               as S
 import qualified Streamly.Prelude       as S
 import           System.Clock           (Clock (..), TimeSpec (..), getTime)
@@ -26,18 +27,21 @@ import           Text.Printf            (printf)
 type Records a = V.Vector (V.Vector a)
 
 
-isObject (Object obj) = True
-isObject _            = False
+isObject :: Value -> Bool
+isObject (Object _) = True
+isObject _          = False
 
 
+extractValues :: Functor f => f Text -> Value -> f Value
 extractValues columns obj = getValue obj <$> columns
   where
-    getValue (Object obj) column = obj ! column
+    getValue (Object o) column = o ! column
+    getValue _ _ = error "extractValues has to be used with objects"
 
 
 executeInsert :: Pool
               -> Statement (Records a) b
-              -> (Records a)
+              -> Records a
               -> IO Double
 executeInsert pool insert values = do
   start <- getTime Monotonic
@@ -45,7 +49,7 @@ executeInsert pool insert values = do
   end <- getTime Monotonic
   case result of
     Left err -> error $ show err
-    Right rowCount -> pure $ (fromIntegral $ nsec (end - start)) / 1000.0 / 1000.0
+    Right _ -> pure $ fromIntegral (nsec (end - start)) / 1000.0 / 1000.0
   where
     session = HS.statement values insert
 
@@ -65,7 +69,7 @@ chunksOf chunkSize = consume chunkSize V.empty
 -- | Convert a vector of rows to column store representation
 -- >>> columnStore $ V.fromList <$> (V.fromList [[1, 10], [2, 20]])
 -- [[1,2],[10,20]]
-columnStore :: (Records a) -> (Records a)
+columnStore :: Records a -> Records a
 columnStore = V.foldr' stepper V.empty
   where
     stepper row newList
@@ -73,6 +77,10 @@ columnStore = V.foldr' stepper V.empty
       | otherwise      = V.zipWith V.cons row newList
 
 
+parseInput :: (S.IsStream t, Monad m, Functor f, Functor (t m))
+           => f (Text, b)
+           -> t m BS.ByteString
+           -> t m (f Value)
 parseInput columns input = input
   & fmap decodeStrict
   & S.filter isJust
@@ -113,14 +121,14 @@ main = do
     rate = Cli.avgRate args
     concurrency = Cli.concurrency args
     bulkSize = Cli.bulkSize args
-  Db.withPool concurrency dbUri (ingest table concurrency bulkSize rate)
+  _ <- Db.withPool concurrency dbUri (ingest table concurrency bulkSize rate)
   putChar '\n'
   putStrLn "done"
   where
     ingest tableName concurrency bulkSize rate pool = do
       insertCtx <- Db.createInsertContext tableName pool
       let
-        columns = Db.columns insertCtx
+        columns = Db.tableColumns insertCtx
         setRate = maybe id S.avgRate rate
         records = S.serially $ getRecords columns bulkSize
         insert = executeInsert pool (Db.insertStatement insertCtx)

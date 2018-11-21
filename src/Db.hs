@@ -53,9 +53,13 @@ withPool poolSize dbUri f = do
 --
 -- >>> parseTableName "doc" "bar"
 -- RelationName ("doc","bar")
+--
+-- >>> parseTableName "doc" ""
+-- RelationName ("doc","")
 parseTableName :: Text -> Text -> RelationName
 parseTableName defaultSchema tableName =
     RelationName $ case parts of
+      []     -> (defaultSchema, "")
       [x]    -> (defaultSchema, x)
       (x:xs) -> (x, T.intercalate "" xs)
   where
@@ -126,6 +130,7 @@ insert (RelationName (schema, table)) columns =
         columnNames = fst <$> columns
         joinByComma = T.intercalate ", " . V.toList
         targetColumns = joinByComma columnNames
+        numberedColumns :: Vector (Int, Text)
         numberedColumns = V.zip (V.fromList [1..]) columnNames
         params = joinByComma $ ("$" <>) . T.pack . show . fst <$> numberedColumns
     encoders = encodersForColumns columns
@@ -136,10 +141,13 @@ valueEncoderForType :: Text -> HE.Value A.Value
 valueEncoderForType "integer" = contramap getInt HE.int4
   where
     getInt (A.Number x) = fromJust $ S.toBoundedInteger x
+    getInt x = error $ "Expected integer, got: " <> show x
+
 valueEncoderForType "string" = contramap getText HE.text
   where
     getText (A.String x) = x
     getText x = error $ "Expected string, got: " <> show x
+valueEncoderForType typeName = error $ "Encoder for type: " <> T.unpack typeName <> " not implemented"
 
 
 encodersForColumns :: Vector (Text, Text) -> HE.Params (Vector (Vector A.Value))
@@ -153,7 +161,7 @@ encodersForColumns columns = mconcat $ V.toList params
 
 data InsertContext = InsertContext
   { insertStatement :: Statement (Vector (Vector A.Value)) GHC.Int.Int64
-  , columns :: Vector (Text, Text) }
+  , tableColumns :: Vector (Text, Text) }
 
 
 createInsertContext :: Text -> Pool -> IO InsertContext
