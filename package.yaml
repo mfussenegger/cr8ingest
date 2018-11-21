@@ -16,6 +16,7 @@ description: |
 
 ghc-options:
   - -Wall
+  - -fno-warn-unused-do-bind
 
 dependencies:
   - base >= 4.7 && < 5

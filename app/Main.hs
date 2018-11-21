@@ -15,7 +15,6 @@ import qualified Db
 import           Hasql.Pool             (Pool, use)
 import qualified Hasql.Session          as HS
 import           Hasql.Statement        (Statement)
-import           Prelude                hiding (head, tail)
 import qualified Streamly               as S
 import qualified Streamly.Prelude       as S
 import           System.Clock           (Clock (..), TimeSpec (..), getTime)
@@ -23,20 +22,7 @@ import qualified System.IO              as IO
 import           Text.Printf            (printf)
 
 
-
 type Records a = V.Vector (V.Vector a)
-
-
-isObject :: Value -> Bool
-isObject (Object _) = True
-isObject _          = False
-
-
-extractValues :: Functor f => f Text -> Value -> f Value
-extractValues columns obj = getValue obj <$> columns
-  where
-    getValue (Object o) column = o ! column
-    getValue _ _ = error "extractValues has to be used with objects"
 
 
 executeInsert :: Pool
@@ -63,7 +49,7 @@ chunksOf chunkSize = consume chunkSize V.empty
       parts <- S.yieldM $ S.uncons stream
       case parts of
         Nothing           -> S.yield items
-        Just (head, tail) -> consume (n - 1) (V.cons head items) tail
+        Just (x, xs) -> consume (n - 1) (V.cons x items) xs
 
 
 -- | Convert a vector of rows to column store representation
@@ -87,6 +73,15 @@ parseInput columns input = input
   & fmap fromJust
   & S.filter isObject
   & fmap (extractValues (fst <$> columns))
+  where
+    extractValues :: Functor f => f Text -> Value -> f Value
+    extractValues columnNames obj = getValue obj <$> columnNames
+      where
+        getValue (Object o) columnName = o ! columnName
+        getValue _ _ = error "extractValues has to be used with objects"
+    isObject :: Value -> Bool
+    isObject (Object _) = True
+    isObject _          = False
 
 
 fromStdin :: S.SerialT IO BS.ByteString
