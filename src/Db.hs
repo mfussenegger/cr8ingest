@@ -1,5 +1,6 @@
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Db
@@ -131,7 +132,7 @@ insert (RelationName (schema, table)) columns =
         joinByComma = T.intercalate ", " . V.toList
         targetColumns = joinByComma columnNames
         numberedColumns :: Vector (Int, Text)
-        numberedColumns = V.zip (V.fromList [1..]) columnNames
+        numberedColumns = V.zip [1..] columnNames
         params = joinByComma $ ("$" <>) . T.pack . show . fst <$> numberedColumns
     encoders = encodersForColumns columns
     decoders = HD.rowsAffected
@@ -153,7 +154,7 @@ valueEncoderForType typeName = error $ "Encoder for type: " <> T.unpack typeName
 encodersForColumns :: Vector (Text, Text) -> HE.Params (Vector (Vector A.Value))
 encodersForColumns columns = mconcat $ V.toList params
   where
-    params = asParam <$> V.zip (V.fromList [0..]) (fmap snd columns)
+    params = asParam <$> V.zip [0..] (fmap snd columns)
     asParam (idx, dataType) = contramap (! idx) (vector $ valueEncoderForType dataType)
     vector value =
       HE.param (HE.array (HE.dimension V.foldl (HE.element value)))

@@ -21,6 +21,9 @@ import           System.Clock           (Clock (..), TimeSpec (..), getTime)
 import qualified System.IO              as IO
 import           Text.Printf            (printf)
 
+-- $setup
+-- >>> :set -XOverloadedLists
+
 
 type Records a = V.Vector (V.Vector a)
 
@@ -53,7 +56,7 @@ chunksOf chunkSize = consume chunkSize V.empty
 
 
 -- | Convert a vector of rows to column store representation
--- >>> columnStore $ V.fromList <$> (V.fromList [[1, 10], [2, 20]])
+-- >>> columnStore [[1, 10], [2, 20]]
 -- [[1,2],[10,20]]
 columnStore :: Records a -> Records a
 columnStore = V.foldr' stepper V.empty
