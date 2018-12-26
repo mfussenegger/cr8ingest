@@ -21,6 +21,10 @@ import qualified Data.Scientific            as S
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
+import           Data.Time.Clock.POSIX      (posixSecondsToUTCTime, POSIXTime)
+import           Data.Time.Format           (defaultTimeLocale,
+                                             iso8601DateFormat,
+                                             parseTimeOrError)
 import           Data.Vector                (Vector, (!))
 import qualified Data.Vector                as V
 import qualified GHC.Int
@@ -148,6 +152,15 @@ valueEncoderForType "string" = contramap getText HE.text
   where
     getText (A.String x) = x
     getText x = error $ "Expected string, got: " <> show x
+valueEncoderForType "timestamp" = contramap parseTime HE.timestamptz
+  where
+    parseTime (A.String x) = parseTimeOrError False defaultTimeLocale isoFormat (T.unpack x)
+    parseTime (A.Number x) = fromSeconds x
+    parseTime x = error $ "Expected a timestamp, got: " <> show x
+    isoFormat = iso8601DateFormat (Just "%H:%M:%SZ")
+    secondsToPosixTime :: S.Scientific -> POSIXTime
+    secondsToPosixTime x = (fromInteger . truncate . (* 1000) $ (S.toRealFloat x :: Double)) / 1000
+    fromSeconds = posixSecondsToUTCTime . secondsToPosixTime
 valueEncoderForType typeName = error $ "Encoder for type: " <> T.unpack typeName <> " not implemented"
 
 
