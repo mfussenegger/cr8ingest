@@ -15,13 +15,13 @@ import           Control.Monad.IO.Class     (liftIO)
 import           Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import qualified Control.Monad.Trans.Reader as Reader
 import qualified Data.Aeson                 as A
-import           Data.Functor.Contravariant (contramap)
+import           Data.Functor.Contravariant (Contravariant, contramap)
 import           Data.Maybe                 (fromJust)
 import qualified Data.Scientific            as S
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
-import           Data.Time.Clock.POSIX      (posixSecondsToUTCTime, POSIXTime)
+import           Data.Time.Clock.POSIX      (POSIXTime, posixSecondsToUTCTime)
 import           Data.Time.Format           (defaultTimeLocale,
                                              iso8601DateFormat,
                                              parseTimeOrError)
@@ -142,12 +142,25 @@ insert (RelationName (schema, table)) columns =
     decoders = HD.rowsAffected
 
 
-valueEncoderForType :: Text -> HE.Value A.Value
-valueEncoderForType "integer" = contramap getInt HE.int4
+encoderForNumber :: Contravariant f
+                 => Text
+                 -> (S.Scientific -> b)
+                 -> f b
+                 -> f A.Value
+encoderForNumber typeName castNumber = contramap extractNumber
   where
-    getInt (A.Number x) = fromJust $ S.toBoundedInteger x
-    getInt x = error $ "Expected integer, got: " <> show x
+    extractNumber (A.Number x) = castNumber x
+    extractNumber x = error $ "Expected " <> T.unpack typeName <> ", got: " <> show x
 
+
+valueEncoderForType :: Text -> HE.Value A.Value
+valueEncoderForType t@"long" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int8
+valueEncoderForType t@"integer" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int4
+valueEncoderForType t@"short" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
+valueEncoderForType t@"byte" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
+valueEncoderForType t@"float" = encoderForNumber t S.toRealFloat HE.float4
+valueEncoderForType t@"double" = encoderForNumber t S.toRealFloat HE.float8
+valueEncoderForType "object" = contramap id HE.json
 valueEncoderForType "string" = contramap getText HE.text
   where
     getText (A.String x) = x
