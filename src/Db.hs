@@ -174,7 +174,13 @@ valueEncoderForType "timestamp" = contramap parseTime HE.timestamptz
     secondsToPosixTime :: S.Scientific -> POSIXTime
     secondsToPosixTime x = (fromInteger . truncate . (* 1000) $ (S.toRealFloat x :: Double)) / 1000
     fromSeconds = posixSecondsToUTCTime . secondsToPosixTime
-valueEncoderForType typeName = error $ "Encoder for type: " <> T.unpack typeName <> " not implemented"
+valueEncoderForType typeName =
+  if T.isSuffixOf "_array" typeName
+    then contramap getArr HE.json
+    else error $ "Encoder for type: " <> T.unpack typeName <> " not implemented"
+  where
+    getArr a@(A.Array _) = a
+    getArr x = error $ "Expected array, got: " <> show x
 
 
 encodersForColumns :: Vector (Text, Text) -> HE.Params (Vector (Vector A.Value))
