@@ -7,11 +7,19 @@ jobs:
       - script: curl -sSL https://get.haskellstack.org/ | sh
         displayName: Install stack
 
+      - script: sudo apt-get install libpq-dev
+        displayName: Install postgres libs
+
       - script: stack build --flag cr8ingest:-static
         displayName: Build
 
       - script: stack test
         displayName: Run tests
+
+      - script: |
+          python -m pip install cr8
+          cd tests && python -m unittest -v
+        displayName: Run doctests
 
       - task: PublishPipelineArtifact@0
         inputs:
@@ -25,7 +33,14 @@ jobs:
       - script: curl -sSL https://get.haskellstack.org/ | sh
         displayName: Install stack
 
-      - script: stack build --flag cr8ingest:-static
+      - script: brew install libpq
+        displayName: Install postgres libs
+
+      - script: |
+          export PATH="/usr/local/opt/libpq/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/libpq/lib"
+          export CPPFLAGS="-I/usr/local/opt/libpq/include"
+          stack build --flag cr8ingest:-static
         displayName: Build
 
       - script: stack test
@@ -36,36 +51,13 @@ jobs:
           artifactName: 'cr8ingest-osx-x86_64'
           targetPath: '.stack-work/install/x86_64-osx/lts-13.0/8.6.3/bin/'
 
-  - job: WindowsTest
-    pool:
-      vmImage: 'VS2017-Win2016'
-    steps:
-      - script: choco install haskell-stack
-        displayName: Install stack
-
-      - script: stack build --flag cr8ingest:-static
-        displayName: Build
-
-      - script: stack test
-        displayName: Run tests
-
-      - task: PublishPipelineArtifact@0
-        inputs:
-          artifactName: 'cr8ingest-windows-x86_64'
-          targetPath: '.stack-work\install\1a74cd24\bin'
-
   - job: Release
     dependsOn:
       - LinuxTest
       - MacOSTest
-      - WindowsTest
 
     steps:
       - script: mkdir -p $(System.DefaultWorkingDirectory)/artifacts/
-      - task: DownloadPipelineArtifact@0
-        inputs:
-          artifactName: 'cr8ingest-windows-x86_64'
-          targetPath: $(System.DefaultWorkingDirectory)/artifacts/
 
       - task: DownloadPipelineArtifact@0
         inputs:
