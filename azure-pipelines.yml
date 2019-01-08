@@ -1,0 +1,89 @@
+---
+jobs:
+  - job: LinuxTest
+    pool:
+      vmImage: 'Ubuntu 16.04'
+    steps:
+      - script: curl -sSL https://get.haskellstack.org/ | sh
+        displayName: Install stack
+
+      - script: stack build --flag cr8ingest:-static
+        displayName: Build
+
+      - script: stack test
+        displayName: Run tests
+
+      - task: PublishPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-linux-x86_64'
+          targetPath: '.stack-work/install/x86_64-linux/lts-13.0/8.6.3/bin/'
+
+  - job: MacOSTest
+    pool:
+      vmImage: 'macOS-10.13'
+    steps:
+      - script: curl -sSL https://get.haskellstack.org/ | sh
+        displayName: Install stack
+
+      - script: stack build --flag cr8ingest:-static
+        displayName: Build
+
+      - script: stack test
+        displayName: Run tests
+
+      - task: PublishPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-osx-x86_64'
+          targetPath: '.stack-work/install/x86_64-osx/lts-13.0/8.6.3/bin/'
+
+  - job: WindowsTest
+    pool:
+      vmImage: 'VS2017-Win2016'
+    steps:
+      - script: choco install haskell-stack
+        displayName: Install stack
+
+      - script: stack build --flag cr8ingest:-static
+        displayName: Build
+
+      - script: stack test
+        displayName: Run tests
+
+      - task: PublishPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-windows-x86_64'
+          targetPath: '.stack-work\install\1a74cd24\bin'
+
+  - job: Release
+    dependsOn:
+      - LinuxTest
+      - MacOSTest
+      - WindowsTest
+
+    steps:
+      - script: mkdir -p $(System.DefaultWorkingDirectory)/artifacts/
+      - task: DownloadPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-windows-x86_64'
+          targetPath: $(System.DefaultWorkingDirectory)/artifacts/
+
+      - task: DownloadPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-osx-x86_64'
+          targetPath: $(System.DefaultWorkingDirectory)/artifacts/
+      - script: mv $(System.DefaultWorkingDirectory)/artifacts/cr8ingest{,-osx-x86_64}
+
+      - task: DownloadPipelineArtifact@0
+        inputs:
+          artifactName: 'cr8ingest-linux-x86_64'
+          targetPath: $(System.DefaultWorkingDirectory)/artifacts/
+      - script: mv $(System.DefaultWorkingDirectory)/artifacts/cr8ingest{,-linux-x86_64}
+
+      - task: GithubRelease@0
+        inputs:
+          gitHubConnection: 'GitHub connection'
+          repositoryName: mfussenegger/cr8ingest
+          target: '$(build.sourceVersion)'
+          assets: $(System.DefaultWorkingDirectory)/artifacts/*
+          tagSource: 'auto'
+          isDraft: true
