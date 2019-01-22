@@ -114,12 +114,12 @@ main :: IO ()
 main = do
   args <- Cli.getArgs
   let
-    dbUri = Cli.dbUri args
+    dbUris = Cli.dbUri args
     table = Cli.table args
     rate = Cli.avgRate args
     concurrency = Cli.concurrency args
     bulkSize = Cli.bulkSize args
-  _ <- Db.withPool concurrency dbUri (ingest table concurrency bulkSize rate)
+  _ <- Db.withPool concurrency dbUris (ingest table concurrency bulkSize rate)
   putChar '\n'
   putStrLn "done"
   where

@@ -35,6 +35,7 @@ dependencies:
   - contravariant
   - clock
   - time
+  - random
 
 library:
   source-dirs: src

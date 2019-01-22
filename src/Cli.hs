@@ -9,7 +9,7 @@ import qualified Options.Applicative as P
 
 
 data Args = Args
-  { dbUri :: Text
+  { dbUri :: [Text]
   , concurrency :: Int
   , bulkSize :: Int
   , avgRate :: Maybe Double
@@ -19,9 +19,8 @@ data Args = Args
 
 argsParser :: P.Parser Args
 argsParser = Args
-  <$> option str
-    ( long "db-uri"
-    <> help "database uri" )
+  <$> P.some (option str
+      ( long "db-uri" <> help "database uri" ))
   <*> option auto
     ( long "concurrency" 
     <> showDefault

@@ -35,6 +35,7 @@ import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import qualified Hasql.Session              as HS
 import           Hasql.Statement            (Statement (..))
+import           System.Random              (randomRIO)
 import           Text.RawString.QQ          (r)
 
 -- $setup
@@ -48,12 +49,14 @@ newtype RelationName = RelationName (Text, Text)
                        deriving (Show)
 
 
-withPool :: Int -> Text -> (Pool -> IO a) -> IO a
-withPool poolSize dbUri f = do
+withPool :: Int -> [Text] -> (Pool -> IO a) -> IO a
+withPool poolSize dbUris f = do
   pool <- P.createPool createConn HC.release poolSize 50 poolSize
   f pool `finally` P.destroyAllResources pool
   where
     createConn = do
+      idx <- randomRIO (0, length dbUris - 1)
+      let dbUri = dbUris !! idx
       errOrConnection <- HC.acquire (T.encodeUtf8 dbUri)
       case errOrConnection of
         Left err   -> error $ show err
