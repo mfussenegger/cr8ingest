@@ -29,8 +29,8 @@ dependencies:
   - optparse-applicative
   - streamly >= 0.5
   - aeson
+  - resource-pool
   - hasql
-  - hasql-pool
   - raw-strings-qq
   - contravariant
   - clock

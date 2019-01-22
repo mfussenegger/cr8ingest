@@ -9,10 +9,10 @@ import qualified Data.ByteString.Char8  as BS
 import           Data.Function          ((&))
 import           Data.HashMap.Strict    ((!))
 import           Data.Maybe             (fromJust, isJust)
+import qualified Data.Pool              as P
 import           Data.Text              (Text)
 import qualified Data.Vector            as V
 import qualified Db
-import           Hasql.Pool             (Pool, use)
 import qualified Hasql.Session          as HS
 import           Hasql.Statement        (Statement)
 import qualified Streamly               as S
@@ -28,13 +28,13 @@ import           Text.Printf            (printf)
 type Records a = V.Vector (V.Vector a)
 
 
-executeInsert :: Pool
+executeInsert :: Db.Pool
               -> Statement (Records a) b
               -> Records a
               -> IO Double
 executeInsert pool insert values = do
   start <- getTime Monotonic
-  result <- use pool session
+  result <- P.withResource pool (HS.run session)
   end <- getTime Monotonic
   case result of
     Left err -> error $ show err

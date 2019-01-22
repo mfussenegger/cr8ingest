@@ -4,7 +4,8 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Db
-  ( withPool
+  ( Pool
+  , withPool
   , createInsertContext
   , InsertContext(..)
   )
@@ -17,6 +18,7 @@ import qualified Control.Monad.Trans.Reader as Reader
 import qualified Data.Aeson                 as A
 import           Data.Functor.Contravariant (Contravariant, contramap)
 import           Data.Maybe                 (fromJust)
+import qualified Data.Pool                  as P
 import qualified Data.Scientific            as S
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
@@ -28,9 +30,9 @@ import           Data.Time.Format           (defaultTimeLocale,
 import           Data.Vector                (Vector, (!))
 import qualified Data.Vector                as V
 import qualified GHC.Int
+import qualified Hasql.Connection           as HC
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
-import           Hasql.Pool                 (Pool, acquire, release, use)
 import qualified Hasql.Session              as HS
 import           Hasql.Statement            (Statement (..))
 import           Text.RawString.QQ          (r)
@@ -39,6 +41,7 @@ import           Text.RawString.QQ          (r)
 -- >>> :set -XOverloadedStrings
 
 
+type Pool = P.Pool HC.Connection
 type DbSession a = ReaderT Pool IO a
 
 newtype RelationName = RelationName (Text, Text)
@@ -47,8 +50,14 @@ newtype RelationName = RelationName (Text, Text)
 
 withPool :: Int -> Text -> (Pool -> IO a) -> IO a
 withPool poolSize dbUri f = do
-  pool <- acquire (poolSize, 500000, T.encodeUtf8 dbUri)
-  f pool `finally` release pool
+  pool <- P.createPool createConn HC.release poolSize 50 poolSize
+  f pool `finally` P.destroyAllResources pool
+  where
+    createConn = do
+      errOrConnection <- HC.acquire (T.encodeUtf8 dbUri)
+      case errOrConnection of
+        Left err   -> error $ show err
+        Right conn -> pure conn
 
 
 -- | Parse fully qualified table name into schema and table
@@ -103,10 +112,11 @@ ORDER BY
 run :: HS.Session a -> DbSession a
 run session = do
   pool <- Reader.ask
-  result <- liftIO $ use pool session
+  result <- liftIO $ P.withResource pool (HS.run session)
   case result of
-    Left err -> error $ show err
+    Left err   -> error $ show err
     Right rows -> pure rows
+
 
 
 getCurrentSchema :: DbSession Text
