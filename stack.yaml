@@ -1,7 +1,8 @@
 ---
-resolver: lts-13.0
+resolver: lts-13.6
 
 packages:
   - .
 
-extra-deps: []
+extra-deps: 
+ - streamly-0.6.0@sha256:ad1b67cff7f04050ef6e00fb56ae42cc67cd3932a92670156da9827fad37a8ca
