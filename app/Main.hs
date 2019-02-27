@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Main where
 
@@ -139,7 +139,7 @@ main = do
         $ records
         & S.asyncly . setRate . S.maxThreads concurrency . S.mapM insert
       where
-        reportProgress stats@RuntimeStats{..} durationInMs = do
+        reportProgress stats@RuntimeStats{start, opCount, opDuration} durationInMs = do
           now <- sec <$> getTime Monotonic
           let
             newOpCount = opCount + 1
