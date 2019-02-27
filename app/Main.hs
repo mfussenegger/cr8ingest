@@ -109,9 +109,9 @@ getRecords columns bulkSize =
 
 
 data RuntimeStats = RuntimeStats
-  { startInMs :: Double
-  , opTotalCount :: Integer
-  , opTotalDurationInMs :: Double }
+  { startInMs :: !Double
+  , opTotalCount :: !Integer
+  , opTotalDurationInMs :: !Double }
 
 
 mkStats :: RuntimeStats
