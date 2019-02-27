@@ -2,7 +2,8 @@
 cr8ingest
 =========
 
-A command line tool to ingest data into `CrateDB <https://github.com/crate/crate>`_.
+A command line tool to ingest JSON records into `CrateDB <https://github.com/crate/crate>`_.
+For a more polished tool see `cr8 <https://github.com/mfussenegger/cr8`_.
 
 
 Example
@@ -20,11 +21,11 @@ Create a table
 Insert some JSON records::
 
   >>> echo '{"id": 1, "name": "Trillian"}' | cr8ingest --table t --db-uri "host=localhost user=crate dbname=doc port=5432"
-  [("id","integer"),("name","string")]
-  "rate: Nothing"
-  "concurrency: 15"
-  op/s: Infinity  avg duration: ...
-  done
+  Columns: [("id","integer"),("name","string")]
+  Rate: Nothing
+  Concurrency: 15
+  1 requests [op/s: ...  avg duration: ... (ms)]
+  <BLANKLINE>
 
 
 Installation
