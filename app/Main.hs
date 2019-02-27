@@ -136,7 +136,6 @@ main = do
     bulkSize = Cli.bulkSize args
   _ <- Db.withPool concurrency dbUris (ingest table concurrency bulkSize rate)
   putChar '\n'
-  putStrLn "done"
   where
     ingest tableName concurrency bulkSize rate pool = do
       insertCtx <- Db.createInsertContext tableName pool
@@ -157,13 +156,14 @@ main = do
         reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs} durationInMs = do
           now <- nsToMs <$> getMonotonicTimeNSec
           let
+            newOpCount = opTotalCount + 1
             opCount :: Double
-            opCount = fromIntegral opTotalCount
+            opCount = fromIntegral newOpCount
             elapsedInS = (now - startInMs) / 1000.0
             avgDurationInMs = opTotalDurationInMs / opCount
             operationsPerSec = opCount / elapsedInS
-          putStr $ printf "op/s: %.2f  avg duration: %.3f (ms)\r" operationsPerSec avgDurationInMs
+          putStr $ printf "%d requests [op/s: %.2f  avg duration: %.3f (ms)]\r" newOpCount operationsPerSec avgDurationInMs
           pure RuntimeStats
             { startInMs = startInMs
-            , opTotalCount = opTotalCount + 1
+            , opTotalCount = newOpCount
             , opTotalDurationInMs = opTotalDurationInMs + durationInMs }
