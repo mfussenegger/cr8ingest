@@ -13,11 +13,12 @@ import qualified Data.Pool              as P
 import           Data.Text              (Text)
 import qualified Data.Vector            as V
 import qualified Db
+import           GHC.Clock              (getMonotonicTimeNSec)
+import           GHC.Word               (Word64)
 import qualified Hasql.Session          as HS
 import           Hasql.Statement        (Statement)
 import qualified Streamly               as S
 import qualified Streamly.Prelude       as S
-import           System.Clock           (Clock (..), TimeSpec (..), getTime)
 import qualified System.IO              as IO
 import           Text.Printf            (printf)
 
@@ -33,12 +34,15 @@ executeInsert :: Db.Pool
               -> Records a
               -> IO Double
 executeInsert pool insert values = do
-  start <- getTime Monotonic
+  start <- getMonotonicTimeNSec
   result <- P.withResource pool (HS.run session)
-  end <- getTime Monotonic
+  end <- getMonotonicTimeNSec
+  let
+    durationInNs = end - start
+    durationInMs = nsToMs durationInNs
   case result of
     Left err -> error $ show err
-    Right _ -> pure $ fromIntegral (nsec (end - start)) / 1000.0 / 1000.0
+    Right _ -> pure durationInMs
   where
     session = HS.statement values insert
 
@@ -105,9 +109,20 @@ getRecords columns bulkSize =
 
 
 data RuntimeStats = RuntimeStats
-  { start :: TimeSpec
-  , opCount :: Integer
-  , opDuration :: Double }
+  { startInMs :: Double
+  , opTotalCount :: Integer
+  , opTotalDurationInMs :: Double }
+
+
+mkStats :: RuntimeStats
+mkStats = RuntimeStats
+  { startInMs = 0
+  , opTotalCount = 0
+  , opTotalDurationInMs = 0 }
+
+
+nsToMs :: Word64 -> Double
+nsToMs ns = fromIntegral ns / (1000.0 * 1000.0)
 
 
 main :: IO ()
@@ -133,18 +148,22 @@ main = do
       print columns
       print $ "rate: " <> show rate
       print $ "concurrency: " <> show concurrency
+      start <- getMonotonicTimeNSec
       IO.hSetBuffering IO.stdout IO.NoBuffering
-      start <- getTime Monotonic
-      S.foldlM' reportProgress RuntimeStats { start = start, opCount = 0, opDuration = 0 }
+      S.foldlM' reportProgress mkStats { startInMs = nsToMs start }
         $ records
         & S.asyncly . setRate . S.maxThreads concurrency . S.mapM insert
       where
-        reportProgress stats@RuntimeStats{start, opCount, opDuration} durationInMs = do
-          now <- sec <$> getTime Monotonic
+        reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs} durationInMs = do
+          now <- nsToMs <$> getMonotonicTimeNSec
           let
-            newOpCount = opCount + 1
-            newTotalDuration = opDuration + durationInMs
-            ops = (fromIntegral newOpCount :: Double) / fromIntegral (now - sec start)
-            avgDuration = newTotalDuration / fromIntegral newOpCount
-          putStr $ printf "op/s: %.2f  avg duration: %.3f\r" ops avgDuration
-          pure stats { opCount = newOpCount, opDuration = newTotalDuration }
+            opCount :: Double
+            opCount = fromIntegral opTotalCount
+            elapsedInS = (now - startInMs) / 1000.0
+            avgDurationInMs = opTotalDurationInMs / opCount
+            operationsPerSec = opCount / elapsedInS
+          putStr $ printf "op/s: %.2f  avg duration: %.3f (ms)\r" operationsPerSec avgDurationInMs
+          pure RuntimeStats
+            { startInMs = startInMs
+            , opTotalCount = opTotalCount + 1
+            , opTotalDurationInMs = opTotalDurationInMs + durationInMs }
