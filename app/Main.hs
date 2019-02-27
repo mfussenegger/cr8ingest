@@ -144,9 +144,9 @@ main = do
         setRate = maybe id S.avgRate rate
         records = S.serially $ getRecords columns bulkSize
         insert = executeInsert pool (Db.insertStatement insertCtx)
-      print columns
-      print $ "rate: " <> show rate
-      print $ "concurrency: " <> show concurrency
+      putStrLn $ "Columns: " <> show columns
+      putStrLn $ "Rate: " <> show rate
+      putStrLn $ "Concurrency: " <> show concurrency
       start <- getMonotonicTimeNSec
       IO.hSetBuffering IO.stdout IO.NoBuffering
       S.foldlM' reportProgress mkStats { startInMs = nsToMs start }
