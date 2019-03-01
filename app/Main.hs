@@ -4,7 +4,7 @@ module Main where
 
 import qualified Cli
 import           Control.Monad.IO.Class (liftIO)
-import           Data.Aeson             (Value (..), decodeStrict)
+import           Data.Aeson             (Value (..), decodeStrict')
 import qualified Data.ByteString.Char8  as BS
 import           Data.Function          ((&))
 import           Data.HashMap.Strict    ((!))
@@ -75,7 +75,7 @@ parseInput :: (S.IsStream t, Monad m, Functor f, Functor (t m))
            -> t m BS.ByteString
            -> t m (f Value)
 parseInput columns input = input
-  & fmap decodeStrict
+  & fmap decodeStrict'
   & S.filter isJust
   & fmap fromJust
   & S.filter isObject
