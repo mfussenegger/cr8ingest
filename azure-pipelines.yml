@@ -24,7 +24,7 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           artifactName: 'cr8ingest-linux-x86_64'
-          targetPath: '.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/'
+          targetPath: '.stack-work/install/x86_64-linux/lts-13.14/8.6.4/bin/'
 
   - job: MacOSTest
     pool:
@@ -49,7 +49,7 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           artifactName: 'cr8ingest-osx-x86_64'
-          targetPath: '.stack-work/install/x86_64-osx/lts-13.8/8.6.3/bin/'
+          targetPath: '.stack-work/install/x86_64-osx/lts-13.14/8.6.4/bin/'
 
   - job: Release
     dependsOn:
