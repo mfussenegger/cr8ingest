@@ -21,7 +21,7 @@ Create a table
 Insert some JSON records::
 
   >>> echo '{"id": 1, "name": "Trillian"}' | cr8ingest --table t --db-uri "host=localhost user=crate dbname=doc port=5432"
-  Columns: [("id","integer"),("name","string")]
+  Columns: [("id","integer"),("name","text")]
   Rate: Nothing
   Concurrency: 15
   1 requests [op/s: ...  avg duration: ... (ms)]

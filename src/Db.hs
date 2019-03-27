@@ -98,7 +98,7 @@ selectColumns = Statement sql encoder decoder False
 FROM 
   information_schema.columns
 WHERE 
-  is_generated = false
+  cast(is_generated as string) in ('f', 'NEVER')
   AND table_schema = $1
   AND table_name = $2
   AND column_name NOT LIKE '%]'
@@ -119,7 +119,6 @@ run session = do
   case result of
     Left err   -> error $ show err
     Right rows -> pure rows
-
 
 
 getCurrentSchema :: DbSession Text
@@ -166,18 +165,26 @@ encoderForNumber typeName castNumber = contramap extractNumber
     extractNumber x = error $ "Expected " <> T.unpack typeName <> ", got: " <> show x
 
 
+getText :: A.Value -> Text
+getText (A.String x) = x
+getText x            = error $ "Expected string, got: " <> show x
+
+
 valueEncoderForType :: Text -> HE.Value A.Value
 valueEncoderForType t@"long" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int8
+valueEncoderForType t@"bigint" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int8
 valueEncoderForType t@"integer" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int4
 valueEncoderForType t@"short" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
+valueEncoderForType t@"smallint" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
 valueEncoderForType t@"byte" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
+valueEncoderForType t@"char" = encoderForNumber t (fromJust . S.toBoundedInteger) HE.int2
 valueEncoderForType t@"float" = encoderForNumber t S.toRealFloat HE.float4
+valueEncoderForType t@"real" = encoderForNumber t S.toRealFloat HE.float4
 valueEncoderForType t@"double" = encoderForNumber t S.toRealFloat HE.float8
+valueEncoderForType t@"double precision" = encoderForNumber t S.toRealFloat HE.float8
 valueEncoderForType "object" = contramap id HE.json
 valueEncoderForType "string" = contramap getText HE.text
-  where
-    getText (A.String x) = x
-    getText x = error $ "Expected string, got: " <> show x
+valueEncoderForType "text" = contramap getText HE.text
 valueEncoderForType "timestamp" = contramap parseTime HE.timestamptz
   where
     parseTime (A.String x) = parseTimeOrError False defaultTimeLocale isoFormat (T.unpack x)
