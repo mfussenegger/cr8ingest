@@ -141,7 +141,9 @@ main = do
       insertCtx <- Db.createInsertContext tableName pool
       let
         columns = Db.tableColumns insertCtx
-        setRate = maybe id S.avgRate rate
+        throttle = case rate of
+          Nothing    -> S.maxThreads concurrency
+          Just rate' -> S.avgRate rate'
         records = S.serially $ getRecords columns bulkSize
         insert = executeInsert pool (Db.insertStatement insertCtx)
       putStrLn $ "Columns: " <> show columns
@@ -151,7 +153,7 @@ main = do
       IO.hSetBuffering IO.stdout IO.NoBuffering
       S.foldlM' reportProgress mkStats { startInMs = nsToMs start }
         $ records
-        & S.asyncly . setRate . S.maxThreads concurrency . S.mapM insert
+        & S.asyncly . throttle . S.mapM insert
       where
         reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs} durationInMs = do
           now <- nsToMs <$> getMonotonicTimeNSec

@@ -4,5 +4,5 @@ resolver: lts-13.22
 packages:
   - .
 
-extra-deps: 
- - streamly-0.6.0@sha256:ad1b67cff7f04050ef6e00fb56ae42cc67cd3932a92670156da9827fad37a8ca
+extra-deps:
+  - streamly-0.6.1@sha256:5c8501ffc49cb55563fbdb3e971d66a75b628ee4a9db2d93f108ec1ea961347a
