@@ -105,9 +105,9 @@ WHERE
 ORDER BY 
   ordinal_position ASC|]
     encoder =
-      contramap fst (HE.param HE.text) <>
-      contramap snd (HE.param HE.text)
-    row = (,) <$> HD.column HD.text <*> HD.column HD.text
+      contramap fst (HE.param (HE.nonNullable HE.text)) <>
+      contramap snd (HE.param (HE.nonNullable HE.text))
+    row = (,) <$> HD.column (HD.nonNullable HD.text) <*> HD.column (HD.nonNullable HD.text)
     decoder =
       HD.rowVector row
 
@@ -125,7 +125,7 @@ getCurrentSchema :: DbSession Text
 getCurrentSchema = run session
   where
     session = HS.statement () selectSchema
-    selectSchema = Statement sql HE.unit (HD.singleRow (HD.column HD.text)) False
+    selectSchema = Statement sql HE.noParams (HD.singleRow (HD.column (HD.nonNullable HD.text))) False
     sql = "SELECT current_schema()"
 
 
@@ -207,9 +207,9 @@ encodersForColumns :: Vector (Text, Text) -> HE.Params (Vector (Vector A.Value))
 encodersForColumns columns = mconcat $ V.toList params
   where
     params = asParam <$> V.zip [0..] (fmap snd columns)
-    asParam (idx, dataType) = contramap (! idx) (vector $ valueEncoderForType dataType)
+    asParam (idx, dataType) = contramap (! idx) (vector $ HE.nonNullable $ valueEncoderForType dataType)
     vector value =
-      HE.param (HE.array (HE.dimension V.foldl (HE.element value)))
+      HE.param $ HE.nonNullable (HE.array (HE.dimension V.foldl (HE.element value)))
 
 
 data InsertContext = InsertContext

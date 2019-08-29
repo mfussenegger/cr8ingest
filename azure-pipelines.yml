@@ -10,7 +10,9 @@ jobs:
       - script: sudo apt-get install libpq-dev
         displayName: Install postgres libs
 
-      - script: stack build --flag cr8ingest:-static
+      - script: |
+          echo '##vso[task.setvariable variable=cr8ingest_install_root]'$(stack path --local-install-root)
+          stack build --flag cr8ingest:-static
         displayName: Build
 
       - script: stack test
@@ -24,7 +26,7 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           artifactName: 'cr8ingest-linux-x86_64'
-          targetPath: '.stack-work/install/x86_64-linux/lts-13.22/8.6.5/bin/'
+          targetPath: '$(CR8INGEST_INSTALL_ROOT)/bin/'
 
   - job: MacOSTest
     pool:
@@ -40,6 +42,7 @@ jobs:
           export PATH="/usr/local/opt/libpq/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/libpq/lib"
           export CPPFLAGS="-I/usr/local/opt/libpq/include"
+          echo '##vso[task.setvariable variable=cr8ingest_install_root]'$(stack path --local-install-root)
           stack build --flag cr8ingest:-static
         displayName: Build
 
@@ -49,7 +52,7 @@ jobs:
       - task: PublishPipelineArtifact@0
         inputs:
           artifactName: 'cr8ingest-osx-x86_64'
-          targetPath: '.stack-work/install/x86_64-osx/lts-13.22/8.6.5/bin/'
+          targetPath: '$(CR8INGEST_INSTALL_ROOT)/bin/'
 
   - job: Release
     dependsOn:
