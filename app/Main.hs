@@ -3,24 +3,25 @@
 module Main where
 
 import qualified Cli
-import           Control.Monad.IO.Class (liftIO)
-import           Data.Aeson             (Value (..), decodeStrict')
-import qualified Data.ByteString.Char8  as BS
-import           Data.Function          ((&))
-import           Data.HashMap.Strict    ((!))
-import           Data.Maybe             (fromJust, isJust)
-import qualified Data.Pool              as P
-import           Data.Text              (Text)
-import qualified Data.Vector            as V
+import Control.Monad (when)
+import Control.Monad.IO.Class (liftIO)
+import Data.Aeson (Value (..), decodeStrict')
+import qualified Data.ByteString.Char8 as BS
+import Data.Function ((&))
+import Data.HashMap.Strict ((!))
+import Data.Maybe (fromJust, isJust)
+import qualified Data.Pool as P
+import Data.Text (Text)
+import qualified Data.Vector as V
 import qualified Db
-import           GHC.Clock              (getMonotonicTimeNSec)
-import           GHC.Word               (Word64)
-import qualified Hasql.Session          as HS
-import           Hasql.Statement        (Statement)
-import qualified Streamly               as S
-import qualified Streamly.Prelude       as S
-import qualified System.IO              as IO
-import           Text.Printf            (printf)
+import GHC.Clock (getMonotonicTimeNSec)
+import GHC.Word (Word64)
+import qualified Hasql.Session as HS
+import Hasql.Statement (Statement)
+import qualified Streamly as S
+import qualified Streamly.Prelude as S
+import qualified System.IO as IO
+import Text.Printf (printf)
 
 -- $setup
 -- >>> :set -XOverloadedLists
@@ -111,14 +112,16 @@ getRecords columns bulkSize =
 data RuntimeStats = RuntimeStats
   { startInMs :: !Double
   , opTotalCount :: !Integer
-  , opTotalDurationInMs :: !Double }
+  , opTotalDurationInMs :: !Double 
+  , lastUpdate :: !Double }
 
 
 mkStats :: RuntimeStats
 mkStats = RuntimeStats
   { startInMs = 0
   , opTotalCount = 0
-  , opTotalDurationInMs = 0 }
+  , opTotalDurationInMs = 0 
+  , lastUpdate = 0} 
 
 
 nsToMs :: Word64 -> Double
@@ -155,7 +158,7 @@ main = do
         $ records
         & S.asyncly . throttle . S.mapM insert
       where
-        reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs} durationInMs = do
+        reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs, lastUpdate} durationInMs = do
           now <- nsToMs <$> getMonotonicTimeNSec
           let
             newOpCount = opTotalCount + 1
@@ -164,8 +167,11 @@ main = do
             elapsedInS = (now - startInMs) / 1000.0
             avgDurationInMs = opTotalDurationInMs / opCount
             operationsPerSec = opCount / elapsedInS
-          putStr $ printf "%d requests [op/s: %.2f  avg duration: %.3f (ms)]\r" newOpCount operationsPerSec avgDurationInMs
+            newLastUpdate = if now - lastUpdate > 50 then now else lastUpdate
+          when (now - lastUpdate > 50) $
+            putStr $ printf "%d requests [op/s: %.2f  avg duration: %.3f (ms)]\r" newOpCount operationsPerSec avgDurationInMs
           pure RuntimeStats
             { startInMs = startInMs
             , opTotalCount = newOpCount
-            , opTotalDurationInMs = opTotalDurationInMs + durationInMs }
+            , opTotalDurationInMs = opTotalDurationInMs + durationInMs 
+            , lastUpdate = newLastUpdate }
