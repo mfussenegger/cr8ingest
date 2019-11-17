@@ -5,4 +5,4 @@ packages:
   - .
 
 extra-deps:
-  - streamly-0.6.1@sha256:5c8501ffc49cb55563fbdb3e971d66a75b628ee4a9db2d93f108ec1ea961347a
+  - streamly-0.7.0

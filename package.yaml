@@ -27,7 +27,7 @@ dependencies:
   - text
   - bytestring
   - optparse-applicative
-  - streamly >= 0.6
+  - streamly >= 0.7
   - aeson
   - resource-pool
   - hasql
