@@ -20,6 +20,7 @@ import GHC.Word (Word64)
 import qualified Hasql.Session as HS
 import Hasql.Statement (Statement)
 import qualified Streamly as S
+import qualified Streamly.Data.Fold as FL
 import qualified Streamly.Prelude as S
 import qualified System.IO as IO
 import Text.Printf (printf)
@@ -48,17 +49,6 @@ executeInsert pool insert values = do
   where
     session = HS.statement values insert
 
-
-chunksOf :: Monad m => Int -> S.SerialT m a -> S.SerialT m (V.Vector a)
-chunksOf chunkSize = consume chunkSize V.empty
-  where
-    consume 0 items stream = S.yield items <>
-                             consume chunkSize V.empty stream
-    consume n items stream = do
-      parts <- S.yieldM $ S.uncons stream
-      case parts of
-        Nothing           -> S.yield items
-        Just (x, xs) -> consume (n - 1) (V.cons x items) xs
 
 
 -- | Convert a vector of rows to column store representation
@@ -105,7 +95,8 @@ getRecords :: V.Vector (Text, Text) -> Int -> S.SerialT IO (Records Value)
 getRecords columns bulkSize =
   fromStdin
   & parseInput columns
-  & chunksOf bulkSize
+  & S.chunksOf bulkSize FL.toList
+  & fmap V.fromList
   & fmap columnStore
   & S.filter (not . V.null)
 
