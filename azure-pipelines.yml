@@ -4,9 +4,6 @@ jobs:
     pool:
       vmImage: 'Ubuntu 16.04'
     steps:
-      - script: curl -sSL https://get.haskellstack.org/ | sh
-        displayName: Install stack
-
       - script: sudo apt-get install libpq-dev
         displayName: Install postgres libs
 
