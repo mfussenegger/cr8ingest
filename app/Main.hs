@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE Strict #-}
 
 module Main where
 
@@ -110,10 +111,10 @@ getRecords columns bulkSize =
 
 
 data RuntimeStats = RuntimeStats
-  { startInMs :: !Double
-  , opTotalCount :: !Integer
-  , opTotalDurationInMs :: !Double 
-  , lastUpdate :: !Double }
+  { startInMs :: Double
+  , opTotalCount :: Integer
+  , opTotalDurationInMs :: Double 
+  , lastUpdate :: Double }
 
 
 mkStats :: RuntimeStats
