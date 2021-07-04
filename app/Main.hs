@@ -1,10 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE Strict #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
 import qualified Cli
-import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (Value (..), decodeStrict')
 import qualified Data.ByteString.Char8 as BS
@@ -19,7 +18,6 @@ import GHC.Clock (getMonotonicTimeNSec)
 import GHC.Word (Word64)
 import qualified Hasql.Session as HS
 import Hasql.Statement (Statement)
-import qualified Streamly as S
 import qualified Streamly.Data.Fold as FL
 import qualified Streamly.Prelude as S
 import qualified System.IO as IO
@@ -88,7 +86,7 @@ fromStdin = do
   eof <- liftIO IO.isEOF
   if eof
     then S.nil
-    else S.yieldM BS.getLine <> fromStdin
+    else S.fromEffect BS.getLine <> fromStdin
 
 
 getRecords :: V.Vector (Text, Text) -> Int -> S.SerialT IO (Records Value)
@@ -96,24 +94,21 @@ getRecords columns bulkSize =
   fromStdin
   & parseInput columns
   & S.chunksOf bulkSize FL.toList
-  & fmap V.fromList
-  & fmap columnStore
+  & fmap (columnStore . V.fromList)
   & S.filter (not . V.null)
 
 
 data RuntimeStats = RuntimeStats
   { startInMs :: Double
   , opTotalCount :: Integer
-  , opTotalDurationInMs :: Double 
-  , lastUpdate :: Double }
+  , opTotalDurationInMs :: Double }
 
 
 mkStats :: RuntimeStats
 mkStats = RuntimeStats
   { startInMs = 0
   , opTotalCount = 0
-  , opTotalDurationInMs = 0 
-  , lastUpdate = 0} 
+  , opTotalDurationInMs = 0 } 
 
 
 nsToMs :: Word64 -> Double
@@ -139,18 +134,20 @@ main = do
         throttle = case rate of
           Nothing    -> S.maxThreads concurrency
           Just rate' -> S.avgRate rate'
-        records = S.serially $ getRecords columns bulkSize
+        records = getRecords columns bulkSize
         insert = executeInsert pool (Db.insertStatement insertCtx)
       putStrLn $ "Columns: " <> show columns
       putStrLn $ "Rate: " <> show rate
       putStrLn $ "Concurrency: " <> show concurrency
       start <- getMonotonicTimeNSec
       IO.hSetBuffering IO.stdout IO.NoBuffering
-      S.foldlM' reportProgress mkStats { startInMs = nsToMs start }
-        $ records
-        & S.asyncly . throttle . S.mapM insert
+      let foldProgress = FL.foldlM' reportProgress $ pure mkStats { startInMs = nsToMs start }
+      records
+        & S.fromSerial
+        & S.fromAsync . throttle . S.mapM insert
+        & S.fold foldProgress
       where
-        reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs, lastUpdate} durationInMs = do
+        reportProgress RuntimeStats{startInMs, opTotalCount, opTotalDurationInMs} durationInMs = do
           now <- nsToMs <$> getMonotonicTimeNSec
           let
             newOpCount = opTotalCount + 1
@@ -159,11 +156,8 @@ main = do
             elapsedInS = (now - startInMs) / 1000.0
             avgDurationInMs = opTotalDurationInMs / opCount
             operationsPerSec = opCount / elapsedInS
-            newLastUpdate = if now - lastUpdate > 50 then now else lastUpdate
-          when (now - lastUpdate > 50) $
-            putStr $ printf "%d requests [op/s: %.2f  avg duration: %.3f (ms)]\r" newOpCount operationsPerSec avgDurationInMs
+          putStr $ printf "%d requests [op/s: %.2f  avg duration: %.3f (ms)]\r" newOpCount operationsPerSec avgDurationInMs
           pure RuntimeStats
             { startInMs = startInMs
             , opTotalCount = newOpCount
-            , opTotalDurationInMs = opTotalDurationInMs + durationInMs 
-            , lastUpdate = newLastUpdate }
+            , opTotalDurationInMs = opTotalDurationInMs + durationInMs }

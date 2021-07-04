@@ -5,4 +5,4 @@ packages:
   - .
 
 extra-deps:
-  - streamly-0.7.3
+  - streamly-0.8.0
