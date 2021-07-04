@@ -1,8 +1,8 @@
 ---
-resolver: lts-14.3
+resolver: lts-17.9
 
 packages:
   - .
 
 extra-deps:
-  - streamly-0.7.0
+  - streamly-0.7.3
